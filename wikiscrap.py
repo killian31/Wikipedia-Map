@@ -87,29 +87,37 @@ def count_titles(links_list):
 
 
 def scrap_all_pages(base_web = base, base_word_enc = word, base_word = "Artificial Intelligence"):
-    tab = np.ndarray(shape=(500000, 2), dtype=object)
-    tab[0,0] = 'title'
-    tab[0,1] = 'link'
-    row = 1
+    tab = []
     page = get_page(base=base_web, word=base_word_enc)
+    print(f"Scraping {base_word}...")
     links_list = get_links(page)
     clean_list = remove_bad_links(links_list)
-    # assert 'Nous vous encourageons à créer un compte utilisateur et vous connecter\u202f; ce n’est cependant pas obligatoire.' in clean_list
-    #print(clean_list)
+    clean_list = remove_doubles(clean_list)
+    print(clean_list)
     title_list = [title for _, title in clean_list]
 
     for link in title_list:
-        tab[row, 0] = base_word
-        tab[row, 1] = link
-        row+=1
+        tab.append((base_word, link))
         #print(link)
-        
+    
+    print(tab)
+
     # for each link
     for link, title in clean_list:
+        print(f"Scraping {title}...")
         page = get_page(base = base_web, word = link)
         links_list = get_links(page)
         list_clean = remove_bad_links(links_list)
+        list_clean = remove_doubles(list_clean)
         title_list = [title for _, title in clean_list]
-        # add each link and his links in the list :
-        
-scrap_all_pages()
+        # add each pair title, link in the list :
+        for t in title_list:
+            tab.append((title, t))
+    
+    return tab
+
+
+network = scrap_all_pages()
+npnet = np.array(network)
+df = pd.DataFrame(npnet, columns=['origin', 'destination'])
+df.to_csv('2deg_network.csv')
