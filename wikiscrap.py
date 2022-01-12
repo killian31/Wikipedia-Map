@@ -22,25 +22,42 @@ def get_links(page):
     print("Number of links found:",len(LinksList))
     return LinksList
 
-# On vire :
-# Si 'Portail' dans le lien 
-# Si plus de 3 fois '/' 
-# Si 'Cat' dans le lien 
-# Si 'Wikip' dans le lien
-# Si '501c' dans le lien
-# Si title is None
-# Si '(page inexistante)' dans titre
-# Si 'Modifier la section' dans titre
-# Si 'Correction des liens externes' dans titre
-# Si 'Référence' dans titre
-# Si 'Aide:' dans titre
-# Modifier cette page [v] 1
-# Vous pouvez modifier cette page ! [e] 1
-# Historique des versions de cette page [h] 1
+# To remove :
+# If 'Portail' in the link
+# If plus de 3 fois '/' 
+# If 'Cat' in the link 
+# If 'Wikip' in the link
+# If '501c' in the link
+# If title is None
+# If '(page inexistante)' in the title
+# If 'Modifier la section' in the title
+# If 'Correction des liens externes' in the title
+# If 'Référence' in the title
+# If 'Aide:' in the title
+# if 'Modifier cette page [v] 1' in the title
+# if 'Vous pouvez modifier cette page ! [e] 1' in the title
+# if 'Historique des versions de cette page [h] 1' in the title
 
 
 def remove_bad_links(links_list):
-    to_remove = ['Nous vous encourageons à créer un compte utilisateur et vous connecter\u202f; ce n’est cependant pas obligatoire.','International Standard Serial Number', 'Agrandir', 'International Standard Book Number', 'Nous vous encourageons à vous connecter\u202f; ce n’est cependant pas obligatoire. [o]', 'La page de discussion pour les contributions depuis cette adresse IP [n]', 'Une liste des modifications effectuées depuis cette adresse IP [y]', 'Affiche un article au hasard [x]', 'Accès à l’aide', 'Liste des modifications récentes sur le wiki [r]', 'Importer des fichiers [u]', 'Liste de toutes les pages spéciales [q]', 'Adresse permanente de cette version de la page', 'Plus d’informations sur cette page', 'Informations sur la manière de citer cette page', 'Version imprimable de cette page [p]', 'Voir le contenu de la page [c]', 'Discussion au sujet de cette page de contenu [t]', 'Sciences cognitives', 'Réseau de neurones (biologie)', 'Logique mathématique']
+    to_remove = ['Nous vous encourageons à créer un compte utilisateur et vous connecter\u202f; ce n’est cependant pas obligatoire.',
+                 'International Standard Serial Number', 
+                 'Agrandir', 'International Standard Book Number', 
+                 'Nous vous encourageons à vous connecter\u202f; ce n’est cependant pas obligatoire. [o]', 
+                 'La page de discussion pour les contributions depuis cette adresse IP [n]', 
+                 'Une liste des modifications effectuées depuis cette adresse IP [y]', 
+                 'Affiche un article au hasard [x]',
+                 'Accès à l’aide',
+                 'Liste des modifications récentes sur le wiki [r]',
+                 'Importer des fichiers [u]',
+                 'Liste de toutes les pages spéciales [q]',
+                 'Adresse permanente de cette version de la page',
+                 'Plus d’informations sur cette page',
+                 'Informations sur la manière de citer cette page',
+                 'Version imprimable de cette page [p]', 
+                 'Voir le contenu de la page [c]',
+                 'Discussion au sujet de cette page de contenu [t]',
+                 ]
     clean_list = []
     for elt in links_list:
         if elt[0] is not None and elt[1] is not None:
@@ -93,9 +110,6 @@ def scrap_all_pages(base_web = base, base_word_enc = word, base_word = "Artifici
         links_list = get_links(page)
         list_clean = remove_bad_links(links_list)
         title_list = [title for _, title in clean_list]
-        # ajouter chaque lien et sa liste dans le tableau :
+        # add each link and his links in the list :
         
 scrap_all_pages()
-
-"""df = pd.DataFrame.from_dict(test, orient='index', columns=['title', 'link'])
-df.to_csv('test.csv')"""
