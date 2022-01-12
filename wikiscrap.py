@@ -4,6 +4,7 @@ import urllib3
 import re
 import pandas as pd
 import numpy as np
+import time
 
 word = "/wiki/Intelligence_artificielle"
 base = "http://fr.wikipedia.org"
@@ -40,24 +41,24 @@ def get_links(page):
 
 
 def remove_bad_links(links_list):
-    to_remove = ['Nous vous encourageons à créer un compte utilisateur et vous connecter\u202f; ce n’est cependant pas obligatoire.',
-                 'International Standard Serial Number', 
-                 'Agrandir', 'International Standard Book Number', 
-                 'Nous vous encourageons à vous connecter\u202f; ce n’est cependant pas obligatoire. [o]', 
-                 'La page de discussion pour les contributions depuis cette adresse IP [n]', 
-                 'Une liste des modifications effectuées depuis cette adresse IP [y]', 
-                 'Affiche un article au hasard [x]',
-                 'Accès à l’aide',
-                 'Liste des modifications récentes sur le wiki [r]',
-                 'Importer des fichiers [u]',
-                 'Liste de toutes les pages spéciales [q]',
-                 'Adresse permanente de cette version de la page',
-                 'Plus d’informations sur cette page',
-                 'Informations sur la manière de citer cette page',
-                 'Version imprimable de cette page [p]', 
-                 'Voir le contenu de la page [c]',
-                 'Discussion au sujet de cette page de contenu [t]',
-                 ]
+    to_remove = [
+        'Nous vous encourageons à créer un compte utilisateur et vous connecter\u202f; ce n’est cependant pas obligatoire.',
+        'International Standard Serial Number',
+        'Agrandir', 'International Standard Book Number',
+        'Nous vous encourageons à vous connecter\u202f; ce n’est cependant pas obligatoire. [o]',
+        'La page de discussion pour les contributions depuis cette adresse IP [n]',
+        'Une liste des modifications effectuées depuis cette adresse IP [y]', 
+        'Affiche un article au hasard [x]', 
+        'Accès à l’aide', 
+        'Liste des modifications récentes sur le wiki [r]', 
+        'Importer des fichiers [u]', 'Liste de toutes les pages spéciales [q]', 
+        'Adresse permanente de cette version de la page', 
+        'Plus d’informations sur cette page', 
+        'Informations sur la manière de citer cette page', 
+        'Version imprimable de cette page [p]', 
+        'Voir le contenu de la page [c]', 
+        'Discussion au sujet de cette page de contenu [t]'
+    ]
     clean_list = []
     for elt in links_list:
         if elt[0] is not None and elt[1] is not None:
@@ -86,6 +87,14 @@ def count_titles(links_list):
     return final_dict
 
 
+def remove_doubles(tup_list):
+    dic={}
+    for link, title in tup_list:
+        if title not in dic.values():
+            dic[title] = link
+    return list(zip(dic.values(),dic.keys()))
+
+
 def scrap_all_pages(base_web = base, base_word_enc = word, base_word = "Artificial Intelligence"):
     tab = []
     page = get_page(base=base_web, word=base_word_enc)
@@ -93,7 +102,7 @@ def scrap_all_pages(base_web = base, base_word_enc = word, base_word = "Artifici
     links_list = get_links(page)
     clean_list = remove_bad_links(links_list)
     clean_list = remove_doubles(clean_list)
-    print(clean_list)
+    # print(clean_list)
     title_list = [title for _, title in clean_list]
 
     for link in title_list:
@@ -116,8 +125,9 @@ def scrap_all_pages(base_web = base, base_word_enc = word, base_word = "Artifici
     
     return tab
 
-
+start = time.time()
 network = scrap_all_pages()
 npnet = np.array(network)
-df = pd.DataFrame(npnet, columns=['origin', 'destination'])
-df.to_csv('2deg_network.csv')
+df = pd.DataFrame(npnet, columns=['Source', 'Target'])
+df.to_csv('2deg_network.csv', index=False)
+print(time.time()-start)
