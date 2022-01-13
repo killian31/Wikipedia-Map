@@ -6,8 +6,16 @@ import pandas as pd
 import numpy as np
 import time
 
-word = "/wiki/Intelligence_artificielle"
+word_base = 'Twitch'
 base = "http://fr.wikipedia.org"
+
+def code_word(word):
+    output = "".join([c if c !=' ' else '_' for c in word])
+    return output
+
+word_base_encoded = code_word(word_base)
+
+word = "/wiki/" + word_base_encoded
 
 def get_page(base=base, word=word):
     response = requests.get(base + word)
@@ -40,7 +48,7 @@ def get_links(page):
 # if 'Historique des versions de cette page [h] 1' in the title
 
 
-def remove_bad_links(links_list):
+def remove_bad_links(links_list, word):
     to_remove = [
         'Nous vous encourageons à créer un compte utilisateur et vous connecter\u202f; ce n’est cependant pas obligatoire.',
         'International Standard Serial Number',
@@ -57,7 +65,13 @@ def remove_bad_links(links_list):
         'Informations sur la manière de citer cette page', 
         'Version imprimable de cette page [p]', 
         'Voir le contenu de la page [c]', 
-        'Discussion au sujet de cette page de contenu [t]'
+        'Discussion au sujet de cette page de contenu [t]',
+        'Modèle:Section à internationaliser',
+        'Projet:Accueil',
+        f'Discussion:{word}',
+        "Si ce bandeau n'est plus pertinent, retirez-le. Cliquez ici pour en savoir plus sur les bandeaux.",
+        f"{word} (homonymie)",
+        "Consultez la documentation du modèle"
     ]
     clean_list = []
     for elt in links_list:
@@ -95,7 +109,35 @@ def remove_doubles(tup_list):
     return list(zip(dic.values(),dic.keys()))
 
 
-def scrap_all_pages(base_web = base, base_word_enc = word, base_word = "Artificial Intelligence"):
+def scrap_all_pages(base_web = base, base_word_enc = word, base_word = word_base):
+    tab = []
+    page = get_page(base=base_web, word=base_word_enc)
+    print(f"Scraping {base_word}...")
+    links_list = get_links(page)
+    clean_list = remove_bad_links(links_list, base_word)
+    clean_list = remove_doubles(clean_list)
+    title_list = [title for _, title in clean_list]
+
+    for link in title_list:
+        tab.append([base_word, link])
+        #print(link)
+    
+    # for each link
+    for link, title in clean_list:
+        print(f"Scraping {title}...")
+        page = get_page(base = base_web, word = link)
+        links_list = get_links(page)
+        list_clean = remove_bad_links(links_list, title)
+        list_clean = remove_doubles(list_clean)
+        title_list = [title for _, title in list_clean]
+        assert len(list_clean) == len(title_list)
+        # add each pair title, link in the list :
+        for t in title_list:
+            tab.append([title, t])
+    
+    return tab
+
+def scrap_semi_pages(base_web = base, base_word_enc = word, base_word = word_base):
     tab = []
     page = get_page(base=base_web, word=base_word_enc)
     print(f"Scraping {base_word}...")
@@ -109,25 +151,76 @@ def scrap_all_pages(base_web = base, base_word_enc = word, base_word = "Artifici
         tab.append((base_word, link))
         #print(link)
     
-    print(tab)
+    p=0
 
     # for each link
     for link, title in clean_list:
-        print(f"Scraping {title}...")
-        page = get_page(base = base_web, word = link)
-        links_list = get_links(page)
-        list_clean = remove_bad_links(links_list)
-        list_clean = remove_doubles(list_clean)
-        title_list = [title for _, title in clean_list]
-        # add each pair title, link in the list :
-        for t in title_list:
-            tab.append((title, t))
+        if p%2==0:
+            p+=1
+            print(f"{title}...")
+            page = get_page(base = base_web, word = link)
+            links_list = get_links(page)
+            list_clean = remove_bad_links(links_list)
+            list_clean = remove_doubles(list_clean)
+            title_list = [title for _, title in clean_list]
+            # add each pair title, link in the list :
+            for t in title_list:
+                tab.append((title, t))
     
     return tab
 
-start = time.time()
-network = scrap_all_pages()
-npnet = np.array(network)
-df = pd.DataFrame(npnet, columns=['Source', 'Target'])
-df.to_csv('2deg_network.csv', index=False)
-print(time.time()-start)
+if __name__ == '__main__':
+    start = time.time()
+    network = scrap_all_pages()
+    npnet = np.array(network)
+    df_links = pd.DataFrame(npnet, columns=['Source', 'Target'])
+
+    a = df_links['Target'].value_counts().to_dict()
+
+    list_code = list(zip(list(a.keys()),[i for i in range(len(list(a.keys())))]))
+    dict_code = {k: v for k, v in list_code}
+
+    enc = {"Source": dict_code, "Target": dict_code}
+    df_links = df_links.replace(enc)
+
+    lnet = [[k,v] for k,v in a.items()]
+    df_nodes = pd.DataFrame(lnet, columns=['Label', 'Weight'])
+
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    vectorizer = TfidfVectorizer(stop_words={'french'})
+    X = vectorizer.fit_transform(a.keys())
+
+    import matplotlib.pyplot as plt
+    from sklearn.cluster import KMeans
+    Sum_of_squared_distances = []
+    K = range(2,10)
+    for k in K:
+        km = KMeans(n_clusters=k, max_iter=200, n_init=10)
+        km = km.fit(X)
+        Sum_of_squared_distances.append(km.inertia_)
+    plt.plot(K, Sum_of_squared_distances, 'bx-')
+    plt.xlabel('k')
+    plt.ylabel('Sum_of_squared_distances')
+    plt.title('Elbow Method For Optimal k')
+    plt.show()
+
+    input('Hit Enter one you have choosen a number of groups...')
+
+    k = int(input('Number of groups choosen: '))
+
+    true_k = k
+    model = KMeans(n_clusters=true_k, init='k-means++', max_iter=200, n_init=10)
+    model.fit(X)
+    labels=model.labels_
+    clust_dic = {title: cluster for title, cluster in list(zip(a.keys(), labels))}
+
+    df_nodes['Cluster'] = clust_dic.values()
+
+    df_nodes.to_csv(f'Data/network_nodes_{word_base_encoded}.csv', index_label='Id')
+    df_links.to_csv(f'Data/network_links_{word_base_encoded}.csv', index=False)
+
+    print("The data has been scraped.")
+    print("Number of lines in link file:", df_links.shape[0])
+    print("Number of lines in node file:", df_nodes.shape[0])
+
+    print("Execution time:", time.time()-start)
