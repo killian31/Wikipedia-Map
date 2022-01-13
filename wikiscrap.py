@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import time
 
-word_base = 'Twitch'
+word_base = 'Stylo'
 base = "http://fr.wikipedia.org"
 
 def code_word(word):
@@ -120,7 +120,6 @@ def scrap_all_pages(base_web = base, base_word_enc = word, base_word = word_base
 
     for link in title_list:
         tab.append([base_word, link])
-        #print(link)
     
     # for each link
     for link, title in clean_list:
@@ -193,10 +192,12 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from sklearn.cluster import KMeans
     Sum_of_squared_distances = []
-    K = range(2,10)
+    K = range(4,8)
     for k in K:
         km = KMeans(n_clusters=k, max_iter=200, n_init=10)
+        print("Clustering with", k, "groups...")
         km = km.fit(X)
+        print("Done.")
         Sum_of_squared_distances.append(km.inertia_)
     plt.plot(K, Sum_of_squared_distances, 'bx-')
     plt.xlabel('k')
