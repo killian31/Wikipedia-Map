@@ -5,19 +5,15 @@ import re
 import pandas as pd
 import numpy as np
 import time
+from pathlib import Path  
+from tqdm import tqdm
 
-word_base = 'Stylo'
-base = "http://fr.wikipedia.org"
 
 def code_word(word):
     output = "".join([c if c !=' ' else '_' for c in word])
     return output
 
-word_base_encoded = code_word(word_base)
-
-word = "/wiki/" + word_base_encoded
-
-def get_page(base=base, word=word):
+def get_page(base, word):
     response = requests.get(base + word)
     return BeautifulSoup(response.content, "html.parser")
 
@@ -27,28 +23,10 @@ def get_links(page):
         linkfound = link.get('href')
         name_link=link.get('title')
         LinksList.append((linkfound, name_link))
-        # print(linkfound, name_link)
-    print("Number of links found:",len(LinksList))
     return LinksList
 
-# To remove :
-# If 'Portail' in the link
-# If plus de 3 fois '/' 
-# If 'Cat' in the link 
-# If 'Wikip' in the link
-# If '501c' in the link
-# If title is None
-# If '(page inexistante)' in the title
-# If 'Modifier la section' in the title
-# If 'Correction des liens externes' in the title
-# If 'Référence' in the title
-# If 'Aide:' in the title
-# if 'Modifier cette page [v] 1' in the title
-# if 'Vous pouvez modifier cette page ! [e] 1' in the title
-# if 'Historique des versions de cette page [h] 1' in the title
 
-
-def remove_bad_links(links_list, word):
+def remove_bad_links(links_list, word, pbar=None):
     to_remove = [
         'Nous vous encourageons à créer un compte utilisateur et vous connecter\u202f; ce n’est cependant pas obligatoire.',
         'International Standard Serial Number',
@@ -71,7 +49,13 @@ def remove_bad_links(links_list, word):
         f'Discussion:{word}',
         "Si ce bandeau n'est plus pertinent, retirez-le. Cliquez ici pour en savoir plus sur les bandeaux.",
         f"{word} (homonymie)",
-        "Consultez la documentation du modèle"
+        "Consultez la documentation du modèle",
+        "Rechercher sur Wikipédia [f]",
+        "Cette page est protégée.\nVous pouvez toutefois en visualiser la source. [e]",
+        "Si ce bandeau n'est plus pertinent, retirez-le. Cliquez ici pour en savoir plus.",
+        "Adresse permanente de cette version de cette page",
+        "Davantage d’informations sur cette page",
+        "Modifier le wikicode [e]"
     ]
     clean_list = []
     for elt in links_list:
@@ -81,8 +65,8 @@ def remove_bad_links(links_list, word):
                     if elt[1] is not None:
                         if elt[1] not in to_remove:
                             clean_list.append(elt)
-    print("Number of clean links:", len(clean_list))
-    # print(clean_list)
+    if pbar is not None:
+        pbar.set_description(f"Number of clean links: {len(clean_list)}")
     return clean_list
 
 def count_titles(links_list):
@@ -100,7 +84,6 @@ def count_titles(links_list):
 
     return final_dict
 
-
 def remove_doubles(tup_list):
     dic={}
     for link, title in tup_list:
@@ -108,8 +91,7 @@ def remove_doubles(tup_list):
             dic[title] = link
     return list(zip(dic.values(),dic.keys()))
 
-
-def scrap_all_pages(base_web = base, base_word_enc = word, base_word = word_base):
+def scrap_all_pages(base_web, base_word_enc, base_word):
     tab = []
     page = get_page(base=base_web, word=base_word_enc)
     print(f"Scraping {base_word}...")
@@ -122,11 +104,12 @@ def scrap_all_pages(base_web = base, base_word_enc = word, base_word = word_base
         tab.append([base_word, link])
     
     # for each link
-    for link, title in clean_list:
-        print(f"Scraping {title}...")
+    pbar = tqdm(clean_list)
+    for link, title in pbar:
+        pbar.set_description(f"Scraping {title}...")
         page = get_page(base = base_web, word = link)
         links_list = get_links(page)
-        list_clean = remove_bad_links(links_list, title)
+        list_clean = remove_bad_links(links_list, title, pbar)
         list_clean = remove_doubles(list_clean)
         title_list = [title for _, title in list_clean]
         assert len(list_clean) == len(title_list)
@@ -136,92 +119,55 @@ def scrap_all_pages(base_web = base, base_word_enc = word, base_word = word_base
     
     return tab
 
-def scrap_semi_pages(base_web = base, base_word_enc = word, base_word = word_base):
-    tab = []
-    page = get_page(base=base_web, word=base_word_enc)
-    print(f"Scraping {base_word}...")
-    links_list = get_links(page)
-    clean_list = remove_bad_links(links_list)
-    clean_list = remove_doubles(clean_list)
-    # print(clean_list)
-    title_list = [title for _, title in clean_list]
 
-    for link in title_list:
-        tab.append((base_word, link))
-        #print(link)
-    
-    p=0
+def main(word):
+    word_base = word
+    base = "http://fr.wikipedia.org"
 
-    # for each link
-    for link, title in clean_list:
-        if p%2==0:
-            p+=1
-            print(f"{title}...")
-            page = get_page(base = base_web, word = link)
-            links_list = get_links(page)
-            list_clean = remove_bad_links(links_list)
-            list_clean = remove_doubles(list_clean)
-            title_list = [title for _, title in clean_list]
-            # add each pair title, link in the list :
-            for t in title_list:
-                tab.append((title, t))
-    
-    return tab
+    word_base_encoded = code_word(word_base)
 
-if __name__ == '__main__':
+    word = "/wiki/" + word_base_encoded
+
+
+    filepath = Path(f'Data/{word_base}/network_nodes_{word_base_encoded}.csv')  
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    filepath = Path(f'Data/{word_base}/network_links_{word_base_encoded}.csv')  
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+
     start = time.time()
-    network = scrap_all_pages()
+    network = scrap_all_pages(base_web = base, base_word_enc = word, base_word = word_base)
+    print("\nAll pages scraped.")
     npnet = np.array(network)
     df_links = pd.DataFrame(npnet, columns=['Source', 'Target'])
-
+    print("Network created")
     a = df_links['Target'].value_counts().to_dict()
 
-    list_code = list(zip(list(a.keys()),[i for i in range(len(list(a.keys())))]))
-    dict_code = {k: v for k, v in list_code}
+    list_code = list(zip(list(a.keys()),[i for i in tqdm(range(len(list(a.keys()))))]))
+    dict_code = {k: v for k, v in tqdm(list_code)}
 
+    print("Preprocessing links...")
     enc = {"Source": dict_code, "Target": dict_code}
+    print("Encoding...")
     df_links = df_links.replace(enc)
-
-    lnet = [[k,v] for k,v in a.items()]
+    print("Links ready.")
+    print("Preprocessing nodes...")
+    lnet = [[k,v] for k,v in tqdm(a.items())]
     df_nodes = pd.DataFrame(lnet, columns=['Label', 'Weight'])
+    print("Nodes ready.")
 
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    vectorizer = TfidfVectorizer(stop_words={'french'})
-    X = vectorizer.fit_transform(a.keys())
-
-    import matplotlib.pyplot as plt
-    from sklearn.cluster import KMeans
-    Sum_of_squared_distances = []
-    K = range(4,8)
-    for k in K:
-        km = KMeans(n_clusters=k, max_iter=200, n_init=10)
-        print("Clustering with", k, "groups...")
-        km = km.fit(X)
-        print("Done.")
-        Sum_of_squared_distances.append(km.inertia_)
-    plt.plot(K, Sum_of_squared_distances, 'bx-')
-    plt.xlabel('k')
-    plt.ylabel('Sum_of_squared_distances')
-    plt.title('Elbow Method For Optimal k')
-    plt.show()
-
-    input('Hit Enter one you have choosen a number of groups...')
-
-    k = int(input('Number of groups choosen: '))
-
-    true_k = k
-    model = KMeans(n_clusters=true_k, init='k-means++', max_iter=200, n_init=10)
-    model.fit(X)
-    labels=model.labels_
-    clust_dic = {title: cluster for title, cluster in list(zip(a.keys(), labels))}
-
-    df_nodes['Cluster'] = clust_dic.values()
-
-    df_nodes.to_csv(f'Data/network_nodes_{word_base_encoded}.csv', index_label='Id')
-    df_links.to_csv(f'Data/network_links_{word_base_encoded}.csv', index=False)
+    print("Creating nodes csv...")
+    df_nodes.to_csv(f'Data/{word_base}/network_nodes_{word_base_encoded}.csv', index_label='Id')
+    print("Nodes csv created.")
+    print("Creating links csv...")
+    df_links.to_csv(f'Data/{word_base}/network_links_{word_base_encoded}.csv', index=False)
+    print("Links csv created.")
 
     print("The data has been scraped.")
     print("Number of lines in link file:", df_links.shape[0])
     print("Number of lines in node file:", df_nodes.shape[0])
 
     print("Execution time:", time.time()-start)
+
+if __name__ == '__main__':
+    main(word=input("Mot de base : "))
