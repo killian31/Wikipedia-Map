@@ -55,8 +55,67 @@ def remove_bad_links(links_list, word, pbar=None):
         "Si ce bandeau n'est plus pertinent, retirez-le. Cliquez ici pour en savoir plus.",
         "Adresse permanente de cette version de cette page",
         "Davantage d’informations sur cette page",
-        "Modifier le wikicode [e]"
+        "Modifier le wikicode [e]",
+        "A list of edits made from this IP address [y]",
+        "Visit the main page [z]",
+        "A list of recent changes to Wikipedia [r]",
+        "Discussion about edits from this IP address [n]",
+        "Learn how to edit Wikipedia",
+        "Guidance on how to use and edit Wikipedia",
+        "Visit the main page",
+        "You're encouraged to log in; however, it's not mandatory. [o]",
+        "Visit a randomly selected article [x]",
+        "A list of all special pages [q]",
+        "You are encouraged to create an account and log in; however, it is not mandatory",
+        "Articles related to current events",
+        "More information about this page",
+        "Past revisions of this page [h]",
+        "Discuss improvements to the content page [t]",
+        "View the content page [c]",
+        "Printable version of this page [p]",
+        "Permanent link to this revision of this page",
+        "Download this page as a PDF file",
+        "Information on how to cite this page",
+        "Edit this page [e]",
+        "Edit section: References",
+        "Help:Authority control",
+        "Enlarge",
+        "Edit section: External link",
+        "ISBN (identifier)",
+        "Edit section: See also",
+        "Edit section: History",
+        "Doi (identifier)",
+        "VIAF (identifier)",
+        "Help:Maintenance template removal",
+        "S2CID (identifier)",
+        "Template:Cite web",
+        "ISSN (identifier)",
+        "ISNI (identifier)",
+        "Help:Referencing for beginners",
+        "Help:Edit summary",
+        "PMID (identifier)",
+        "Edit section: Further reading",
+        "Bibcode (identifier)",
+        "SUDOC (identifier)",
+        "Edit this page",
+        "Help:CS1 errors",
+        "Template:Cite journal",
+        "MBAREA (identifier)",
+        "Edit section: External links",
+        "Portal",
+        "OCLC (identifier)",
+        "PMC (identifier)",
+        "Edit section: Notes",
+        "Hdl (identifier)",
+        "JSTOR (identifier)",
+        "About this sound",
+        "Edit section: Geography",
+        "This page is protected.\nYou can view its source [e]",
+        "Edit section: Education",
+        "Wayback Machine",
+        "Geographic coordinate system"
     ]
+    years = [str(i) for i in range(2022)] + [f"{i}s" for i in range(2022)]
     clean_list = []
     for elt in links_list:
         if elt[0] is not None and elt[1] is not None:
@@ -64,7 +123,9 @@ def remove_bad_links(links_list, word, pbar=None):
                 if elt[0].count('/') < 3:
                     if elt[1] is not None:
                         if elt[1] not in to_remove:
-                            clean_list.append(elt)
+                            if "Edit section" not in elt[1] and "(page does not exist)" not in elt[1] and "Template" not in elt[1] and "List of" not in elt[1] and "History of" not in elt[1]:
+                                if elt[1] not in years:
+                                    clean_list.append(elt)
     if pbar is not None:
         pbar.set_description(f"Number of clean links: {len(clean_list)}")
     return clean_list
@@ -120,9 +181,9 @@ def scrap_all_pages(base_web, base_word_enc, base_word):
     return tab
 
 
-def main(word):
+def main(language, word):
     word_base = word
-    base = "http://fr.wikipedia.org"
+    base = f"http://{language}.wikipedia.org"
 
     word_base_encoded = code_word(word_base)
 
@@ -170,4 +231,4 @@ def main(word):
     print("Execution time:", time.time()-start)
 
 if __name__ == '__main__':
-    main(word=input("Mot de base : "))
+    main(language=input("Language [en, fr] : ") ,word=input("Concept : "))
